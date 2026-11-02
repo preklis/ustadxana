@@ -1,0 +1,23 @@
+/* hero image from the pack instead of the dot grid */
+.bc-login-hero {
+  background: rgb(var(--slate-950)) url("assets/hero.svg") center / cover no-repeat;
+}
+.bc-login-hero .bc-hero-bg {
+  background: linear-gradient(to top, rgb(var(--slate-950)) 10%, transparent 70%) !important;
+}
+.bc-login-title {
+  font-size: 4.5rem;
+}
+.bc-btn-primary {
+  border-radius: 999px;
+}
+.night-badge {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 13px;
+  background: rgb(var(--brand-500) / 0.15);
+  color: rgb(var(--brand-300));
+}

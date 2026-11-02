@@ -1,0 +1,22 @@
+const nav = {
+  dashboard: "Ana səhifə",
+  classrooms: "Siniflər",
+  todo: "Tapşırıqlarım",
+  calendar: "Təqvim",
+  announcements: "Elanlar",
+  notifications: "Bildirişlər",
+  certificates: "Sertifikatlar",
+  profile: "Profil",
+  admin: "İdarəetmə",
+  users: "İstifadəçilər",
+  approvals: "Təsdiqlər",
+  manageClassrooms: "Sinif idarəsi",
+  seasons: "Mövsümlər",
+  audit: "Audit jurnalı",
+  applications: "Müraciətlər",
+  apply: "Müraciət et",
+  appearance: "Görünüş",
+  logout: "Çıxış",
+  menu: "Menyu",
+};
+export default nav;

@@ -1,0 +1,22 @@
+{
+  "name": "Night Shift",
+  "slug": "night-shift",
+  "version": "1.0.0",
+  "author": "Ustadxana",
+  "description": "Example pack: no terminal and no command line on the sign-in page, image hero, orange accent.",
+  "settings": {
+    "colors": { "accent": "#f97316", "neutral": "zinc" },
+    "mode": { "default": "dark", "allowToggle": false },
+    "background": { "pattern": "none", "glow": true },
+    "parts": {
+      "loginTerminal": false,
+      "loginCommand": false,
+      "loginVersion": false,
+      "sidebarTagline": false
+    },
+    "messages": {
+      "az": { "auth.login.title": "Xoş gəldin" },
+      "en": { "auth.login.title": "Welcome back" }
+    }
+  }
+}

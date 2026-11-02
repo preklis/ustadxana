@@ -1,0 +1,6 @@
+tree 53359ffe18a20f5abd613f90949d4e26ec17206b
+parent f520cc1b699f467f99f51a54ee5858d9b9852add
+author Evosmart Tech <tech@evosmart.az> 1793609961 +0400
+committer Evosmart Tech <tech@evosmart.az> 1793609961 +0400
+
+Trim SMTP section in .env.example

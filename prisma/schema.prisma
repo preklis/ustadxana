@@ -1,0 +1,550 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN // Project Lead
+  ADMIN // Coordinator / board member
+  STAFF
+  MENTOR
+  STUDENT
+  APPLICANT_CHECKER // staff who only reviews applications
+}
+
+enum UserStatus {
+  PROFILE_INCOMPLETE // student verified email, must fill profile
+  PENDING_APPROVAL // student profile submitted, waiting for staff
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum Permission {
+  MANAGE_USERS
+  APPROVE_STUDENTS
+  VIEW_ALL_CLASSROOMS
+  MANAGE_CLASSROOMS
+  MANAGE_SEASONS
+  POST_ANNOUNCEMENTS
+  MANAGE_ATTENDANCE
+  VIEW_GRADES
+  MANAGE_CERTIFICATES
+  VIEW_AUDIT_LOG
+  MANAGE_APPEARANCE
+  REVIEW_APPLICATIONS
+  MANAGE_APPLICATIONS
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  email              String       @unique
+  passwordHash       String
+  role               Role         @default(STUDENT)
+  status             UserStatus   @default(PROFILE_INCOMPLETE)
+  firstName          String       @default("")
+  lastName           String       @default("")
+  title              String? // e.g. "Backend Mentor", "SMM"
+  extraPermissions   Permission[] @default([])
+  locale             String       @default("az")
+  mustChangePassword Boolean      @default(false)
+  avatarFileId       String?      @unique
+  avatarFile         FileObject?  @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  rejectionReason    String?
+  approvedAt         DateTime?
+  approvedById       String?
+  approvedBy         User?        @relation("UserApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedUsers      User[]       @relation("UserApprovals")
+  lastLoginAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  profile            StudentProfile?
+  sessions           Session[]
+  memberships        ClassroomMember[]
+  assignments        Assignment[]         @relation("AssignmentAuthor")
+  submissions        Submission[]         @relation("SubmissionStudent")
+  gradedSubmissions  Submission[]         @relation("SubmissionGrader")
+  comments           Comment[]
+  announcements      Announcement[]
+  uploadedFiles      FileObject[]         @relation("FileUploader")
+  attendanceRecords  AttendanceRecord[]
+  attendanceSessions AttendanceSession[]
+  certificates       Certificate[]        @relation("CertificateHolder")
+  issuedCertificates Certificate[]        @relation("CertificateIssuer")
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  createdSeasons     Season[]
+  applicationReviews ApplicationReview[]
+
+  @@index([role])
+  @@index([status])
+}
+
+model StudentProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone            String
+  birthDate        DateTime?
+  gender           String?
+  university       String
+  faculty          String // specialty / major
+  courseYear       Int
+  studentIdNumber  String?
+  github           String?
+  linkedin         String?
+  portfolio        String?
+  bio              String?
+  preferredTrack   String?
+  motivation       String?
+  priorExperience  String?
+  hasLaptop        Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum OtpPurpose {
+  REGISTER
+  RESET_PASSWORD
+  APPLY
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  email      String
+  purpose    OtpPurpose
+  codeHash   String
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([email, purpose])
+}
+
+model Season {
+  id               String        @id @default(cuid())
+  name             String
+  number           Int?          @unique
+  description      String?
+  startDate        DateTime?
+  endDate          DateTime?
+  isActive         Boolean       @default(false)
+  registrationOpen Boolean       @default(false)
+  createdById      String?
+  createdBy        User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  classrooms       Classroom[]
+  announcements    Announcement[]
+  certificates     Certificate[]
+  applicationForms ApplicationForm[]
+}
+
+model Classroom {
+  id          String   @id @default(cuid())
+  seasonId    String
+  season      Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  name        String
+  track       String?
+  description String?
+  room        String? // physical room / lab
+  schedule    String? // free text, e.g. "Mon-Fri 10:00-13:00"
+  color       String   @default("blue")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members            ClassroomMember[]
+  assignments        Assignment[]
+  topics             Topic[]
+  announcements      Announcement[]
+  attendanceSessions AttendanceSession[]
+  certificates       Certificate[]
+
+  @@index([seasonId])
+}
+
+enum ClassroomRole {
+  MENTOR
+  STAFF
+  STUDENT
+}
+
+model ClassroomMember {
+  classroomId String
+  classroom   Classroom     @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        ClassroomRole
+  joinedAt    DateTime      @default(now())
+
+  @@id([classroomId, userId])
+  @@index([userId])
+}
+
+model Topic {
+  id          String       @id @default(cuid())
+  classroomId String
+  classroom   Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  name        String
+  position    Int          @default(0)
+  assignments Assignment[]
+  createdAt   DateTime     @default(now())
+
+  @@index([classroomId])
+}
+
+enum AssignmentType {
+  ASSIGNMENT // requires submission
+  MATERIAL // read-only resource
+  QUESTION // short text answer
+}
+
+model Assignment {
+  id          String         @id @default(cuid())
+  classroomId String
+  classroom   Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  topicId     String?
+  topic       Topic?         @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  authorId    String
+  author      User           @relation("AssignmentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  type        AssignmentType @default(ASSIGNMENT)
+  title       String
+  description String?
+  links       String[]       @default([])
+  maxPoints   Int?
+  dueAt       DateTime?
+  allowLate   Boolean        @default(true)
+  published   Boolean        @default(true)
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  attachments FileObject[]   @relation("AssignmentFiles")
+  submissions Submission[]
+  comments    Comment[]
+
+  @@index([classroomId])
+  @@index([dueAt])
+}
+
+enum SubmissionStatus {
+  DRAFT // student added work but did not turn in
+  SUBMITTED
+  RETURNED // graded and returned
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User             @relation("SubmissionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  status       SubmissionStatus @default(DRAFT)
+  text         String?
+  links        String[]         @default([])
+  submittedAt  DateTime?
+  isLate       Boolean          @default(false)
+  grade        Int?
+  feedback     String?
+  gradedById   String?
+  gradedBy     User?            @relation("SubmissionGrader", fields: [gradedById], references: [id], onDelete: SetNull)
+  gradedAt     DateTime?
+  returnedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  files        FileObject[]     @relation("SubmissionFiles")
+  comments     Comment[]
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+}
+
+model Comment {
+  id           String      @id @default(cuid())
+  authorId     String
+  author       User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body         String
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  submissionId String?
+  submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  announcementId String?
+  announcement   Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([assignmentId])
+  @@index([submissionId])
+  @@index([announcementId])
+}
+
+model FileObject {
+  id             String        @id @default(cuid())
+  storageKey     String        @unique
+  originalName   String
+  mimeType       String
+  size           Int
+  uploaderId     String
+  uploader       User          @relation("FileUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
+  assignmentId   String?
+  assignment     Assignment?   @relation("AssignmentFiles", fields: [assignmentId], references: [id], onDelete: Cascade)
+  submissionId   String?
+  submission     Submission?   @relation("SubmissionFiles", fields: [submissionId], references: [id], onDelete: Cascade)
+  announcementId String?
+  announcement   Announcement? @relation("AnnouncementFiles", fields: [announcementId], references: [id], onDelete: Cascade)
+  avatarOf       User?         @relation("UserAvatar")
+  createdAt      DateTime      @default(now())
+
+  @@index([assignmentId])
+  @@index([submissionId])
+  @@index([announcementId])
+}
+
+enum AnnouncementAudience {
+  EVERYONE
+  STUDENTS
+  TEAM // staff + mentors + admins
+}
+
+model Announcement {
+  id          String               @id @default(cuid())
+  // null classroomId = camp-wide
+  classroomId String?
+  classroom   Classroom?           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  seasonId    String?
+  season      Season?              @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  authorId    String
+  author      User                 @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  title       String?
+  body        String
+  audience    AnnouncementAudience @default(EVERYONE)
+  pinned      Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  attachments FileObject[]         @relation("AnnouncementFiles")
+  comments    Comment[]
+
+  @@index([classroomId])
+  @@index([seasonId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
+model AttendanceSession {
+  id          String             @id @default(cuid())
+  classroomId String
+  classroom   Classroom          @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  date        DateTime           @db.Date
+  title       String?
+  takenById   String?
+  takenBy     User?              @relation(fields: [takenById], references: [id], onDelete: SetNull)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  records     AttendanceRecord[]
+
+  @@unique([classroomId, date])
+}
+
+model AttendanceRecord {
+  id        String            @id @default(cuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status    AttendanceStatus
+  note      String?
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+}
+
+enum CertificateType {
+  PARTICIPATION
+  DISTINCTION
+  MENTOR
+  STAFF
+}
+
+model Certificate {
+  id          String          @id @default(cuid())
+  code        String          @unique // public verification code
+  holderId    String
+  holder      User            @relation("CertificateHolder", fields: [holderId], references: [id], onDelete: Cascade)
+  seasonId    String
+  season      Season          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  classroomId String?
+  classroom   Classroom?      @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  type        CertificateType
+  // frozen at issue time
+  holderName  String
+  trackName   String?
+  issuedById  String?
+  issuedBy    User?           @relation("CertificateIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+  issuedAt    DateTime        @default(now())
+  revokedAt   DateTime?
+
+  @@unique([holderId, seasonId, classroomId, type])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String // e.g. "user.create", "student.approve"
+  targetType String?
+  targetId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+}
+
+// site wide key/value settings (theme etc), edited by admins
+model Setting {
+  key         String   @id
+  value       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
+// installed theme packs (like wordpress themes). the active one is Setting "theme" -> { packId }
+model ThemePack {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  version     String   @default("1.0.0")
+  author      String?
+  description String?
+  builtIn     Boolean  @default(false)
+  css         String   @default("")
+  defaults    Json // ThemeConfig shipped with the pack
+  custom      Json? // the admin's customizations of this pack, null = untouched
+  screenshot  String? // path inside the pack, e.g. "screenshot.png"
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// in-platform replacement for google forms. a form is opened to the public by the project lead,
+// applicants verify their email and submit answers, applicant checkers score them
+enum ApplicationStatus {
+  SUBMITTED
+  SHORTLISTED
+  WAITLISTED
+  ACCEPTED
+  REJECTED
+}
+
+enum ApplicationKind {
+  STUDENT // accepted people can register and are approved automatically
+  TEAM // staff / mentor applications, accounts are created by admins
+}
+
+model ApplicationForm {
+  id           String          @id @default(cuid())
+  slug         String          @unique
+  title        String
+  description  String?
+  kind         ApplicationKind @default(STUDENT)
+  seasonId     String?
+  season       Season?         @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  questions    Json            @default("[]") // Question[], see src/lib/applications/questions.ts
+  isOpen       Boolean         @default(false) // only the superadmin flips this
+  closesAt     DateTime?
+  allowEdit    Boolean         @default(true) // applicants can change answers while open
+  confirmation String? // shown after submitting
+  openedById   String?
+  openedAt     DateTime?
+  createdById  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  applications Application[]
+
+  @@index([isOpen])
+}
+
+model Application {
+  id             String             @id @default(cuid())
+  formId         String
+  form           ApplicationForm    @relation(fields: [formId], references: [id], onDelete: Cascade)
+  email          String
+  name           String             @default("") // from the questions mapped to first/last name
+  answers        Json // { [questionId]: string | string[] }
+  status         ApplicationStatus  @default(SUBMITTED)
+  avgScore       Float?
+  reviewCount    Int                @default(0)
+  locale         String             @default("az")
+  decidedById    String?
+  decidedAt      DateTime?
+  notifiedStatus ApplicationStatus? // the status the applicant was last emailed about
+  notifiedAt     DateTime?
+  userId         String? // set when an accepted applicant registers
+  submittedAt    DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  reviews        ApplicationReview[]
+
+  @@unique([formId, email])
+  @@index([formId, status])
+  @@index([email])
+}
+
+model ApplicationReview {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId    String
+  reviewer      User        @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+  score         Int // 1..10
+  comment       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([applicationId, reviewerId])
+  @@index([reviewerId])
+}

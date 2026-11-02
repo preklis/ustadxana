@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* defaults only, the real values come from the <style> tag the root layout renders from the saved theme */
+  :root {
+    color-scheme: light;
+    --brand-50: 238 243 255; --brand-100: 220 230 255; --brand-200: 191 209 255; --brand-300: 146 177 255;
+    --brand-400: 94 136 255; --brand-500: 47 107 255; --brand-600: 31 85 240; --brand-700: 26 68 214;
+    --brand-800: 28 58 173; --brand-900: 29 54 136; --brand-950: 21 33 82; --brand-fg: 255 255 255;
+    --slate-50: 245 247 252; --slate-100: 235 239 248; --slate-200: 217 223 238; --slate-300: 183 193 218;
+    --slate-400: 133 146 179; --slate-500: 95 107 140; --slate-600: 70 81 114; --slate-700: 46 56 86;
+    --slate-800: 26 34 64; --slate-900: 15 21 41; --slate-950: 8 12 25;
+    --radius-scale: 1;
+  }
+  .dark {
+    color-scheme: dark;
+  }
+  ::selection {
+    background: rgb(var(--brand-500));
+    color: rgb(var(--brand-fg));
+  }
+  h1,
+  h2 {
+    letter-spacing: -0.02em;
+  }
+}
+
+/* background pattern + accent corner glow both set in the theme.
+   fixed so it doesnt repaint on scroll */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  --pattern-color: rgb(var(--slate-900) / 0.07);
+  --pattern: radial-gradient(var(--pattern-color) 1px, transparent 1px);
+  --pattern-size: 22px 22px;
+  --glow: radial-gradient(circle at 100% 100%, rgb(var(--brand-500) / 0.1), transparent 42%);
+  background-image: var(--glow), var(--pattern);
+  background-size: 100% 100%, var(--pattern-size);
+}
+.dark body::before {
+  --pattern-color: rgb(var(--slate-300) / 0.07);
+  --glow: radial-gradient(circle at 100% 100%, rgb(var(--brand-500) / 0.16), transparent 42%);
+}
+[data-pattern="grid"] body::before {
+  --pattern: linear-gradient(var(--pattern-color) 1px, transparent 1px), linear-gradient(90deg, var(--pattern-color) 1px, transparent 1px);
+  background-image: var(--glow), var(--pattern);
+  background-size: 100% 100%, 28px 28px, 28px 28px;
+}
+[data-pattern="none"] body::before {
+  --pattern: linear-gradient(transparent, transparent);
+}
+[data-glow="off"] body::before {
+  --glow: linear-gradient(transparent, transparent);
+}
+
+@layer components {
+  .prose-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+  }
+  .prose-text a {
+    color: rgb(var(--brand-500));
+    text-decoration: underline;
+  }
+
+  /* terminal style labels, e.g. "> ./ustadxana" */
+  .term {
+    @apply font-mono text-[13px] text-slate-500 dark:text-slate-400;
+  }
+}
+
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgb(var(--slate-800));
+  border-radius: 999px;
+  border: 2px solid rgb(var(--slate-950));
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* theme switches set on <html> by the root layout */
+[data-motion="off"] .animate-fade-up {
+  animation: none;
+}
+[data-content="wide"] .bc-main {
+  max-width: 88rem;
+}
+[data-content="full"] .bc-main {
+  max-width: none;
+}

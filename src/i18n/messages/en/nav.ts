@@ -1,0 +1,22 @@
+const nav = {
+  dashboard: "Home",
+  classrooms: "Classrooms",
+  todo: "To-do",
+  calendar: "Calendar",
+  announcements: "Announcements",
+  notifications: "Notifications",
+  certificates: "Certificates",
+  profile: "Profile",
+  admin: "Administration",
+  users: "Users",
+  approvals: "Approvals",
+  manageClassrooms: "Manage classrooms",
+  seasons: "Seasons",
+  audit: "Audit log",
+  appearance: "Appearance",
+  applications: "Applications",
+  apply: "Apply",
+  logout: "Sign out",
+  menu: "Menu",
+};
+export default nav;
